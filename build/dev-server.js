@@ -4,7 +4,8 @@ const webpack = require('webpack');
 const webpackDevMiddleware = require('webpack-dev-middleware');
 const webpackHotMiddleware = require('webpack-hot-middleware');
 const config = require('./webpack.dev.conf.js');
-const map = require('../mock/map.js');
+const map = require('../mock/map');
+
 const complier = webpack(config); // 编译器，编译器执行一次就会重新打包一下代码
 const app = express(); // 生成一个实例
 const server = require('http').createServer(app);
@@ -28,16 +29,29 @@ app.use(devMiddleware);
 app.use(hotMiddleware);
 // 设置访问静态文件的路径
 app.use(express.static(DIST_DIR));
+
+let t = null;
 io.on('connection', socket => {
-  socket.emit('message', map());
-
-  setInterval(() => {
+  socket.on('message', () => {
     socket.emit('message', map());
-  }, 5000);
 
-  socket.on('message', data => {
-    socket.broadcast.emit('message', [{ ...data }]);
+    if (t) {
+      clearInterval(t);
+      t = null;
+    }
+
+    t = setInterval(() => {
+      socket.emit('message', map());
+    }, 5000);
   });
+});
+
+io.on('disconnect', () => {
+  console.log('disconnect');
+  if (t) {
+    clearInterval(t);
+    t = null;
+  }
 });
 
 server.listen(port, () => {
